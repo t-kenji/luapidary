@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<title>Home - lupidary example</title>
+</head>
+<body>
+It works.
+
+<script>
+const sessionId = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('session_id'))
+    .split('=')[1];
+
+var conn = new WebSocket('ws://' + location.host + '/websockify');
+conn.onopen = () => {
+    conn.send(`
+{
+    "jsonrpc": "2.0",
+    "method": "subscribe",
+    "params": {
+        "session_id": "${sessionId}",
+        "function_no": "0201"
+    },
+    "id": 1
+}
+{
+    "jsonrpc": "2.0",
+`);
+    conn.send(`
+    "method": "subscribe",
+    "params": {
+        "session_id": "${sessionId}",
+        "function_no": "0201"
+    },
+    "id": 2
+}
+`);
+};
+conn.onmessage = (e) => {
+        console.log(JSON.parse(e.data));
+};
+</script>
+</body>
+</html>
