@@ -12,19 +12,22 @@ _M.__index = _M
 local match = string.match
 
 local uri_cls = {}
+
 function uri_cls:schema()
     return self.schema_
 end
+
 function uri_cls:host()
     return self.host_
 end
+
 function uri_cls:path()
     return self.path_
 end
+
 function uri_cls:query()
     return self.query_
 end
-setmetatable(uri_cls, {__index = uri_cls})
 
 function _M.parse(uri)
     local s = tostring(uri or '')

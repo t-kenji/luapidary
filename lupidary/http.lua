@@ -23,7 +23,7 @@ local function parse_cookie(str)
     for k, v in gmatch(str, '([%w_-]*)=([%w_-]*);*') do
         o[k] = v
     end
-    setmetatable(o, {__index = o})
+
     return o
 end
 
@@ -46,9 +46,8 @@ local function request(environ)
             o.media = json.decode(o.content)
         end)
     end
-
-    setmetatable(o, {__index = o})
     return o
+
 end
 
 local mt = {}

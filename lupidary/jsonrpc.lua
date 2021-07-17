@@ -17,10 +17,10 @@ local sub, byte = string.sub, string.byte
 local mt = {}
 mt.__index = mt
 
-local mt_req = {}
-mt_req.__index = mt_req
+local req_mt = {}
+req_mt.__index = req_mt
 
-function mt_req:response(data)
+function req_mt:response(data)
     data = data or {}
     local o = {
         jsonrpc = '2.0',
@@ -43,7 +43,7 @@ function mt_req:response(data)
     self.parent_.so_:send(encode(o))
 end
 
-function mt_req:parse_error(e)
+function req_mt:parse_error(e)
     e = e or {}
     self:response{
         error = {
@@ -54,7 +54,7 @@ function mt_req:parse_error(e)
     }
 end
 
-function mt_req:invalid_request(e)
+function req_mt:invalid_request(e)
     e = e or {}
     self:response{
         error = {
@@ -65,7 +65,7 @@ function mt_req:invalid_request(e)
     }
 end
 
-function mt_req:method_not_found(e)
+function req_mt:method_not_found(e)
     e = e or {}
     self:response{
         error = {
@@ -76,7 +76,7 @@ function mt_req:method_not_found(e)
     }
 end
 
-function mt_req:invalid_params(e)
+function req_mt:invalid_params(e)
     e = e or {}
     self:response{
         error = {
@@ -87,7 +87,7 @@ function mt_req:invalid_params(e)
     }
 end
 
-function mt_req:internal_error(e)
+function req_mt:internal_error(e)
     e = e or {}
     self:response{
         error = {
@@ -98,7 +98,7 @@ function mt_req:internal_error(e)
     }
 end
 
-function mt_req:server_error(e)
+function req_mt:server_error(e)
     e = e or {}
     self:response{
         error = {
@@ -113,7 +113,7 @@ function mt:receive()
     local o = {
         parent_ = self,
     }
-    setmetatable(o, {__index = mt_req})
+    setmetatable(o, {__index = req_mt})
 
     local data = nil
     local buffer = (self.carry_over_ or '')
