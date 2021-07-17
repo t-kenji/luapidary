@@ -11,6 +11,9 @@ _M.__index = _M
 
 local json = require('json')
 
+local encode, decode = json.encode, json.decode
+local sub, byte = string.sub, string.byte
+
 local mt = {}
 mt.__index = mt
 
@@ -18,40 +21,124 @@ local mt_req = {}
 mt_req.__index = mt_req
 
 function mt_req:response(data)
+    data = data or {}
     local o = {
         jsonrpc = '2.0',
-        id = self.data_.id,
+        id = (self.data_ or {}).id,
     }
-    if data['error'] then
-        o['error'] = data['error']
+
+    local e = data['error']
+    if e then
+        o['error'] = {
+            code = e.code or -32000,
+            message = e.message,
+            data = e.data,
+        }
     elseif data.result then
         o.result = data.result
     else
         error('Response must have result or error field')
     end
 
-    self.parent_.so_:send(json.encode(o))
+    self.parent_.so_:send(encode(o))
+end
+
+function mt_req:parse_error(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = -32700,
+            message = e.message or 'Parse error',
+            data = e.data,
+        }
+    }
+end
+
+function mt_req:invalid_request(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = -32600,
+            message = e.message or 'Invalid Request',
+            data = e.data,
+        }
+    }
+end
+
+function mt_req:method_not_found(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = -32601,
+            message = e.message or 'Method not found',
+            data = e.data,
+        }
+    }
+end
+
+function mt_req:invalid_params(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = -32602,
+            message = e.message or 'Invalid params',
+            data = e.data,
+        }
+    }
+end
+
+function mt_req:internal_error(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = -32603,
+            message = e.message or 'Internal error',
+            data = e.data,
+        }
+    }
+end
+
+function mt_req:server_error(e)
+    e = e or {}
+    self:response{
+        error = {
+            code = e.code,
+            message = e.message or 'Server error',
+            data = e.data,
+        }
+    }
 end
 
 function mt:receive()
     local o = {
         parent_ = self,
     }
+    setmetatable(o, {__index = mt_req})
 
     local data = nil
     local buffer = (self.carry_over_ or '')
     while true do
         local nest = 0
         for i = 1, #buffer do
-            local c = string.byte(buffer, i)
+            local c = byte(buffer, i)
             if c == 123 then -- '{'
                 nest = nest + 1
             elseif c == 125 then -- '}'
+                if nest == 0 then
+                    o:parse_error()
+                    error('Parse error')
+                end
                 nest = nest - 1
 
                 if nest == 0 then
-                    self.carry_over_ = string.sub(buffer, i + 1)
-                    data = json.decode(string.sub(buffer, 1, i))
+                    self.carry_over_ = sub(buffer, i + 1)
+                    local ok, err = pcall(function ()
+                        data = decode(sub(buffer, 1, i))
+                    end)
+                    if not ok then
+                        o:parse_error()
+                        error(err)
+                    end
                     break
                 end
             end
@@ -62,12 +149,14 @@ function mt:receive()
 
         local err, chunk = select(2, self.so_:receive('*a'))
         if err ~= 'timeout' then
+            o:parse_error()
             error(err)
         end
         buffer = buffer .. chunk
     end
 
     if data.jsonrpc ~= '2.0' then
+        o:invalid_request()
         error('Version not supported (expected 2.0 but got ' .. data.jsonrpc ..')')
     end
 
@@ -76,12 +165,11 @@ function mt:receive()
     o.id = data.id
     o.data_ = data
 
-    setmetatable(o, {__index = mt_req})
     return o
 end
 
 function mt:send(data)
-    self.so_:send(json.encode({
+    self.so_:send(encode({
         jsonrpc = '2.0',
         method = data.method or error('Request must have method field'),
         params = data.params,

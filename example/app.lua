@@ -58,6 +58,10 @@ lupidary.bind('tcp+listen:///tmp/wstunnel.sock')
     while true do
         local req = rpc:receive()
         req:response{result = 'ok'}
+        --req:method_not_found()
+        --req:invalid_params()
+        --req:internal_error()
+        --req:server_error{code = -32001, message = 'Some error occurred', data = 'extra data'}
 
         for k, v in pairs(conns) do
             if k ~= so then
@@ -68,6 +72,9 @@ lupidary.bind('tcp+listen:///tmp/wstunnel.sock')
 end)
 :onclose(function (so)
     conns[so] = nil
+end)
+:onerror(function (so, err)
+    print(err, tostring(so.sock_))
 end)
 
 lupidary.run()
