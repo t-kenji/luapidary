@@ -42,9 +42,12 @@ local function request(environ)
         o.media = lupidary.query.parse_qs(o.content)
     end
     if not o.media then
-        pcall(function ()
+        local ok, err = pcall(function ()
             o.media = json.decode(o.content)
         end)
+        if not ok then
+            o.media = {}
+        end
     end
     return o
 
