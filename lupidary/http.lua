@@ -69,22 +69,48 @@ function _M.serve(uri)
     lupidary.bind(uri, true)
     :onopen(function (so)
         scgi.wrap(so):run(function (environ, start_response)
+            local req = request(environ)
             local resp = {
-                content = 'It works.',
-                status_code = '200 OK',
+                content = 'Not Found',
+                status_code = '404 Not Found',
                 headers = {
                     ['Content-type'] = 'text/html; charset=utf-8',
                 }
             }
 
+            local old_cookie = req.cookie
+            local new_cookie = {}
+            req.cookie = setmetatable({}, {
+                __index = function (self, key)
+                    local value = new_cookie[key] or old_cookie[key]
+                    return value
+                end,
+
+                __newindex = function (self, key, value)
+                    new_cookie[key] = value
+                end,
+            })
+
             local path = match(environ['REQUEST_URI'], '[^?]+')
-            local req = request(environ)
             for _, route in ipairs(o.routes) do
                 local args = pack(match(path, route.matcher))
                 if #args > 0 then
                     route.handler(req, resp, unpack(args))
+                    break
                 end
             end
+
+            local set_cookie = resp.headers['Set-Cookie']
+            for k, v in pairs(new_cookie) do
+                if not set_cookie then
+                    set_cookie = k .. '=' .. v
+                elseif type(set_cookie) == 'string' then
+                    set_cookie = {set_cookie}
+                else
+                    table.insert(set_cookie, k .. '=' .. v)
+                end
+            end
+            resp.headers['Set-Cookie'] = set_cookie
 
             start_response(resp.status_code, resp.headers)
             if type(resp.media) == 'table' then
