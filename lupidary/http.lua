@@ -40,15 +40,12 @@ local function request(environ)
     local content_type = environ['CONTENT_TYPE'] or ''
     if find(content_type, 'application/x-www-form-urlencoded', 1, true) then
         o.media = lupidary.query.parse_qs(o.content)
+    elseif find(content_type, 'application/json', 1, true) then
+        o.media = json.decode(o.content)
+    else
+        o.media = {}
     end
-    if not o.media then
-        local ok, err = pcall(function ()
-            o.media = json.decode(o.content)
-        end)
-        if not ok then
-            o.media = {}
-        end
-    end
+
     return o
 
 end
