@@ -51,4 +51,12 @@ function _M.add(username, id, data)
     return o
 end
 
+function _M.delete(id)
+    for i = 1, #sessions do
+        if sessions[i].id == id then
+            return table.remove(sessions, i)
+        end
+    end
+end
+
 return _M
